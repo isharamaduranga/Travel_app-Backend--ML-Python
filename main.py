@@ -6,7 +6,7 @@ from fastapi import UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+
 from crud import create_user, get_user, get_users, authenticate_user, delete_user_from_db, create_place, get_all_places, \
     get_places_by_user_id, get_place_by_place_id, get_places_by_tag, create_comment, get_comments_by_user_id, \
     get_comments_by_place_id, get_all_places_with_comments
@@ -14,8 +14,8 @@ from database import SessionLocal, engine
 from ml_model import predict_score
 from models import Base
 from response_models import create_response
-from schemas import UserCreate, User, UserLogin, PlaceCreate, PlaceResponse, PlaceGetByPlaceId, \
-    CommentCreate, PlaceGetByUserId, CommentByUserIdResponse, CommentByPlaceIdResponse, PlaceWithCommentsResponse
+from schemas import User, UserLogin, PlaceCreate, PlaceResponse, PlaceGetByPlaceId, \
+    CommentCreate, PlaceGetByUserId, CommentByUserIdResponse, CommentByPlaceIdResponse, PlaceResponseWithImg
 
 Base.metadata.create_all(bind=engine)
 
@@ -42,12 +42,17 @@ def get_db():
 
 # API to register a new user
 @app.post("/api/v1/register")
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
+def register_user(
+        username: str = Form(...),
+        email: str = Form(...),
+        password: str = Form(...),
+        user_img: UploadFile = File(None),
+        db: Session = Depends(get_db)
+):
     try:
-        return create_user(db, **user.dict())
+        return create_user(db, username=username, email=email, password=password, user_img=user_img)
     except IntegrityError as e:
-        # Handle unique constraint violation (email already exists)
-        return create_response("error", "Email already registered !", data=None)
+        return create_response("error", "Email already registered!", data=None)
 
 
 # API to login
@@ -81,6 +86,7 @@ def get_specific_user(user_id: int, db: Session = Depends(get_db)):
                 "id": user.id,
                 "username": user.username,
                 "email": user.email,
+                "user_img": user.user_img
             }
             return create_response("success", "User retrieved successfully", data=user_data)
         else:
@@ -158,7 +164,7 @@ def create_place_endpoint(
 
 
 # API to get all places
-@app.get("/api/v1/places", response_model=List[PlaceResponse])
+@app.get("/api/v1/places")
 def get_all_places_endpoint(db: Session = Depends(get_db)):
     places = get_all_places(db)
 

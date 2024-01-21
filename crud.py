@@ -1,7 +1,7 @@
 # crud.py
 import boto3
 from botocore.exceptions import NoCredentialsError
-from fastapi import UploadFile
+from fastapi import UploadFile, Form
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from models import User, Place, UserRoles, Comment
@@ -22,9 +22,28 @@ def get_password_hash(password: str):
     return pwd_context.hash(password)
 
 
-def create_user(db: Session, username: str, email: str, password: str, role: UserRoles = UserRoles.user):
+def create_user(
+        db: Session,
+        username: str,
+        email: str,
+        password: str,
+        user_img: UploadFile = Form(...),
+        role: UserRoles = UserRoles.user
+):
     hashed_password = get_password_hash(password)
-    db_user = User(username=username, email=email, hashed_password=hashed_password, role=role)
+
+    # Check if user_img is provided
+    user_img_url = None
+    if user_img:
+        # Upload the image to AWS S3 or any other storage
+        bucket_name = 'travel-app-images'
+        region_name = '.s3.ap-south-1.amazonaws.com'
+        s3_file_path = f"uploads/{user_img.filename}"
+
+        if upload_to_aws(user_img.file, bucket_name, s3_file_path):
+            user_img_url = f"https://{bucket_name}{region_name}/{s3_file_path}"
+
+    db_user = User(username=username, email=email, hashed_password=hashed_password, role=role, user_img=user_img_url)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -84,8 +103,6 @@ def upload_to_aws(file, bucket, s3_file, acl="public-read"):
         return False
 
 
-# https://travel-app-images.s3.ap-south-1.amazonaws.com/
-
 def create_place(db: Session, place: PlaceCreate, img: UploadFile):
     try:
         # Upload the image to AWS S3
@@ -141,7 +158,6 @@ def get_places_by_tag(db: Session, tag: str):
     return db.query(Place).filter(Place.tags.ilike(f"%{tag}%")).all()
 
 
-# crud.py
 def create_comment(db: Session, comment: CommentCreate):
     db_comment = Comment(
         comment_text=comment.comment_text,
@@ -170,18 +186,26 @@ def get_all_places_with_comments(db: Session):
 
     for place in places:
         comments = get_comments_by_place_id(db, place.id)
-        comments_response = [
-            CommentResponse(
+        user = get_user(db, place.user_id)
+
+        comments_response = []
+
+        for comment in comments:
+            # Get user information for the comment's user
+            comment_user = get_user(db, comment.user_id)
+
+            comment_response = CommentResponse(
                 comment_id=comment.id,
                 comment_text=comment.comment_text,
                 email=comment.email,
                 name=comment.name,
                 commented_at=comment.commented_at,
                 user_id=comment.user_id,
+                user_image=comment_user.user_img,  # Set user_image for the comment
                 place_id=comment.place_id
             )
-            for comment in comments
-        ]
+
+            comments_response.append(comment_response)
 
         place_with_comments = {
             "id": place.id,
@@ -193,6 +217,7 @@ def get_all_places_with_comments(db: Session):
             "user_full_name": place.user_full_name,
             "rating_score": place.rating_score,
             "posted_date": place.posted_date,
+            "user_image": user.user_img,
             "comments": comments_response
         }
 

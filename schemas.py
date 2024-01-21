@@ -1,7 +1,7 @@
 # user base schemas
+from fastapi import UploadFile, Form
 from pydantic import BaseModel
-from models import UserRoles
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -12,11 +12,19 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role: UserRoles = UserRoles.user
+    user_img: Optional[UploadFile] = Form(None)
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    user_img: Optional[UploadFile] = None
 
 
 class User(UserBase):
     id: int
+    user_img: str
 
     class Config:
         orm_mode = True
@@ -45,6 +53,22 @@ class PlaceCreate(PlaceBase):
 class PlaceResponse(BaseModel):
     id: int
     img: str  # Change the type to str for URLs
+    title: str
+    content: str
+    tags: List[str]
+    user_id: int
+    user_full_name: str
+    rating_score: float
+    posted_date: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class PlaceResponseWithImg(BaseModel):
+    id: int
+    img: str  # Existing img field
+    user_img: str  # New user_img field
     title: str
     content: str
     tags: List[str]
@@ -112,6 +136,7 @@ class CommentResponse(BaseModel):
     name: str
     commented_at: datetime
     user_id: int
+    user_image: str
     place_id: int
 
 

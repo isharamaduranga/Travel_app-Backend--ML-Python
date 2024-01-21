@@ -19,8 +19,10 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     role = Column(Enum(UserRoles), default=UserRoles.user)
+    user_img = Column(String, nullable=True)
     places = relationship("Place", back_populates="user")
     comments = relationship("Comment", back_populates="user")
+
 
 
 class Place(Base):
