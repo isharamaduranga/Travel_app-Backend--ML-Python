@@ -104,3 +104,28 @@ class CommentByPlaceIdResponse(BaseModel):
 class CreatePlaceComment(BaseModel):
     place_id: int
 
+
+class CommentResponse(BaseModel):
+    comment_id: int
+    comment_text: str
+    email: str
+    name: str
+    commented_at: datetime
+    user_id: int
+    place_id: int
+
+
+class PlaceWithCommentsResponse(BaseModel):
+    id: int
+    img: str
+    title: str
+    content: str
+    tags: List[str]
+    user_id: int
+    user_full_name: str
+    rating_score: float
+    posted_date: datetime
+    comments: List[CommentResponse]
+
+    class Config:
+        orm_mode = True

@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 from models import User, Place, UserRoles, Comment
 from response_models import create_response
-from schemas import PlaceCreate, CommentCreate
+from schemas import PlaceCreate, CommentCreate, CommentResponse
 from datetime import datetime
 from dotenv import load_dotenv
 import os
@@ -162,3 +162,40 @@ def get_comments_by_user_id(db: Session, user_id: int):
 
 def get_comments_by_place_id(db: Session, place_id: int):
     return db.query(Comment).filter(Comment.place_id == place_id).all()
+
+
+def get_all_places_with_comments(db: Session):
+    places = db.query(Place).all()
+    places_with_comments = []
+
+    for place in places:
+        comments = get_comments_by_place_id(db, place.id)
+        comments_response = [
+            CommentResponse(
+                comment_id=comment.id,
+                comment_text=comment.comment_text,
+                email=comment.email,
+                name=comment.name,
+                commented_at=comment.commented_at,
+                user_id=comment.user_id,
+                place_id=comment.place_id
+            )
+            for comment in comments
+        ]
+
+        place_with_comments = {
+            "id": place.id,
+            "img": place.img,
+            "title": place.title,
+            "content": place.content,
+            "tags": place.tags.split(','),
+            "user_id": place.user_id,
+            "user_full_name": place.user_full_name,
+            "rating_score": place.rating_score,
+            "posted_date": place.posted_date,
+            "comments": comments_response
+        }
+
+        places_with_comments.append(place_with_comments)
+
+    return places_with_comments

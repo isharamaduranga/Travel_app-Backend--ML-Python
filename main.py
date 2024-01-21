@@ -6,16 +6,16 @@ from fastapi import UploadFile
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
-
+from fastapi.responses import JSONResponse
 from crud import create_user, get_user, get_users, authenticate_user, delete_user_from_db, create_place, get_all_places, \
     get_places_by_user_id, get_place_by_place_id, get_places_by_tag, create_comment, get_comments_by_user_id, \
-    get_comments_by_place_id
+    get_comments_by_place_id, get_all_places_with_comments
 from database import SessionLocal, engine
-from ml_model import predict_score, TransformersPipelineException
+from ml_model import predict_score
 from models import Base
 from response_models import create_response
 from schemas import UserCreate, User, UserLogin, PlaceCreate, PlaceResponse, PlaceGetByPlaceId, \
-    CommentCreate, PlaceGetByUserId, CommentByUserIdResponse, CommentByPlaceIdResponse
+    CommentCreate, PlaceGetByUserId, CommentByUserIdResponse, CommentByPlaceIdResponse, PlaceWithCommentsResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -254,6 +254,23 @@ def get_comments_by_place_id_endpoint(place_id: int, db: Session = Depends(get_d
     ]
 
     return comments_response
+
+
+# API to get all places with comments
+@app.get("/api/v1/placesWithComments", response_model=dict)
+def get_all_places_with_comments_endpoint(db: Session = Depends(get_db)):
+    try:
+        places_with_comments = get_all_places_with_comments(db)
+        response_data = {
+            "status": "success",
+            "message": "Successfully fetched",
+            "data": {"data": places_with_comments}
+        }
+        return response_data
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        error_message = "Failed to fetch data. Reason: {}".format(str(e))
+        raise HTTPException(status_code=500, detail=error_message)
 
 
 def create_response(status, message, data):
