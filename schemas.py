@@ -10,18 +10,6 @@ class UserBase(BaseModel):
     email: str
 
 
-class UserCreate(UserBase):
-    password: str
-    user_img: Optional[UploadFile] = Form(None)
-
-
-class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    password: Optional[str] = None
-    user_img: Optional[UploadFile] = None
-
-
 class User(UserBase):
     id: int
     user_img: str
@@ -65,32 +53,12 @@ class PlaceResponse(BaseModel):
         orm_mode = True
 
 
-class PlaceResponseWithImg(BaseModel):
-    id: int
-    img: str  # Existing img field
-    user_img: str  # New user_img field
-    title: str
-    content: str
-    tags: List[str]
-    user_id: int
-    user_full_name: str
-    rating_score: float
-    posted_date: datetime
-
-    class Config:
-        orm_mode = True
-
-
 class PlaceGetByUserId(BaseModel):
     user_id: int
 
 
 class PlaceGetByPlaceId(BaseModel):
     place_id: int
-
-
-class PlaceGetByTag(BaseModel):
-    tag: str
 
 
 # Add a new schema for creating a comment
@@ -125,10 +93,6 @@ class CommentByPlaceIdResponse(BaseModel):
     place_id: int
 
 
-class CreatePlaceComment(BaseModel):
-    place_id: int
-
-
 class CommentResponse(BaseModel):
     comment_id: int
     comment_text: str
@@ -139,18 +103,3 @@ class CommentResponse(BaseModel):
     user_image: str
     place_id: int
 
-
-class PlaceWithCommentsResponse(BaseModel):
-    id: int
-    img: str
-    title: str
-    content: str
-    tags: List[str]
-    user_id: int
-    user_full_name: str
-    rating_score: float
-    posted_date: datetime
-    comments: List[CommentResponse]
-
-    class Config:
-        orm_mode = True

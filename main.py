@@ -7,15 +7,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
 
-from crud import create_user, get_user, get_users, authenticate_user, delete_user_from_db, create_place, get_all_places, \
+from crud import create_user, get_user, get_users, authenticate_user, delete_user_from_db, create_place, \
     get_places_by_user_id, get_place_by_place_id, get_places_by_tag, create_comment, get_comments_by_user_id, \
-    get_comments_by_place_id, get_all_places_with_comments
+    get_comments_by_place_id, get_all_places_with_comments, get_all_places_with_comments_by_place_id, \
+    get_all_places_with_comments_by_search_text
 from database import SessionLocal, engine
 from ml_model import predict_score
 from models import Base
 from response_models import create_response
 from schemas import User, UserLogin, PlaceCreate, PlaceResponse, PlaceGetByPlaceId, \
-    CommentCreate, PlaceGetByUserId, CommentByUserIdResponse, CommentByPlaceIdResponse, PlaceResponseWithImg
+    CommentCreate, PlaceGetByUserId, CommentByUserIdResponse, CommentByPlaceIdResponse
 
 Base.metadata.create_all(bind=engine)
 
@@ -46,7 +47,7 @@ def register_user(
         username: str = Form(...),
         email: str = Form(...),
         password: str = Form(...),
-        user_img: UploadFile = File(None),
+        user_img: UploadFile = File(...),
         db: Session = Depends(get_db)
 ):
     try:
@@ -163,18 +164,6 @@ def create_place_endpoint(
         # raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
-# API to get all places
-@app.get("/api/v1/places")
-def get_all_places_endpoint(db: Session = Depends(get_db)):
-    places = get_all_places(db)
-
-    # Convert tags from comma-separated string to list
-    for place in places:
-        place.tags = place.tags.split(',')
-
-    return places
-
-
 # API to get places by user ID
 @app.post("/api/v1/places/getByUserId", response_model=List[PlaceResponse])
 def get_places_by_user_id_endpoint(user_data: PlaceGetByUserId, db: Session = Depends(get_db)):
@@ -197,18 +186,6 @@ def get_place_by_place_id_endpoint(place_data: PlaceGetByPlaceId, db: Session = 
         place.tags = place.tags.split(',')
 
     return place
-
-
-# API to get places by tag
-@app.get("/api/v1/places/getByCategory/{tag}", response_model=List[PlaceResponse])
-def get_places_by_tag_endpoint(tag: str, db: Session = Depends(get_db)):
-    places = get_places_by_tag(db, tag=tag)
-
-    # Convert tags from comma-separated string to list
-    for place in places:
-        place.tags = place.tags.split(',')
-
-    return places
 
 
 # Api to create new comment related place
@@ -279,6 +256,66 @@ def get_all_places_with_comments_endpoint(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=error_message)
 
 
+@app.get("/api/v1/placesWithComments/{place_id}", response_model=dict)
+def get_all_places_with_comments_by_id_endpoint(place_id: int, db: Session = Depends(get_db)):
+    try:
+        places_with_comments = get_all_places_with_comments_by_place_id(db, place_id)
+        response_data = {
+            "status": "success",
+            "message": "Successfully fetched",
+            "data": {"data": places_with_comments}
+        }
+        return response_data
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        error_message = "Failed to fetch data. Reason: {}".format(str(e))
+        raise HTTPException(status_code=500, detail=error_message)
+
+
+@app.get("/api/v1/places/getByCategory/{tag}", response_model=dict)
+def get_places_by_tag_endpoint(tag: str, db: Session = Depends(get_db)):
+    try:
+        places_with_comments = get_places_by_tag(db, tag=tag)
+        response_data = {
+            "status": "success",
+            "message": "Successfully fetched",
+            "data": {"data": places_with_comments}
+        }
+        return response_data
+    except Exception as e:
+        error_message = "Failed to fetch data. Reason: {}".format(str(e))
+        raise HTTPException(status_code=500, detail=error_message)
+
+    # API to get places by tag
+    # @app.get("/api/v1/places/getByCategory/{tag}", response_model=List[PlaceResponse])
+    # def get_places_by_tag_endpoint(tag: str, db: Session = Depends(get_db)):
+    #     places = get_places_by_tag(db, tag=tag)
+    #
+    #     # Convert tags from comma-separated string to list
+    #     for place in places:
+    #         place.tags = place.tags.split(',')
+    #
+    #     return places
+
+
+# Add a new API endpoint for searching places and comments
+@app.get("/api/v1/placesWithComments/search/{search_text}", response_model=dict)
+def search_places_and_comments(search_text: str, db: Session = Depends(get_db)
+                               ):
+    try:
+        places_with_comments = get_all_places_with_comments_by_search_text(db, search_text)
+        response_data = {
+            "status": "success",
+            "message": "Successfully fetched",
+            "data": {"data": places_with_comments}
+        }
+        return response_data
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        error_message = f"Failed to fetch data. Reason: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_message)
+
+
 def create_response(status, message, data):
     return {"status": status, "message": message, "data": data}
 
@@ -302,13 +339,16 @@ def score_and_update_place(
         # Calculate the average score
         avg_score = sum(scores) / len(scores)
 
+        # Convert the score to a 0-5 scale
+        avg_score_0_to_5 = avg_score * 5
+
         # Update the place rating_score in the database
         place = get_place_by_place_id(db, place_id)
         if place:
-            place.rating_score = avg_score
+            place.rating_score = avg_score_0_to_5
             db.commit()
             db.refresh(place)
-            return {"rating_score": avg_score}
+            return {"rating_score": avg_score_0_to_5}
         else:
             return create_response("error", "Place not found !", data=None)
             # raise HTTPException(status_code=404, detail="Place not found")

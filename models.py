@@ -24,7 +24,6 @@ class User(Base):
     comments = relationship("Comment", back_populates="user")
 
 
-
 class Place(Base):
     __tablename__ = "places"
 
@@ -50,7 +49,7 @@ class Comment(Base):
     commented_at = Column(DateTime, default=datetime.utcnow)
     comment_text = Column(Text)
     email = Column(String)  # extra add field
-    name = Column(String)   # extra add field
+    name = Column(String)  # extra add field
     user = relationship("User", back_populates="comments")
     place = relationship("Place", back_populates="comments")
 
