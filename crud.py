@@ -7,7 +7,7 @@ from botocore.exceptions import NoCredentialsError
 from dotenv import load_dotenv
 from fastapi import UploadFile, Form
 from passlib.context import CryptContext
-from sqlalchemy import desc
+from sqlalchemy import desc, and_
 from sqlalchemy.orm import Session
 
 from models import User, Place, UserRoles, Comment
@@ -152,9 +152,9 @@ def get_place_by_place_id(db: Session, place_id: int):
 
 
 # Add a new function to get places by tag
-def get_places_by_tag(db: Session, tag: str):
-    places = db.query(Place).filter(Place.tags.ilike(f"%{tag}%")).order_by(desc(Place.rating_score)).all()
-    places_with_comments_result  = []
+def get_places_by_tag(db: Session, tag: str, min: float, max: float):
+    places = db.query(Place).filter(Place.tags.ilike(f"%{tag}%")).filter(and_(Place.rating_score >= min, Place.rating_score <= max)).order_by(desc(Place.rating_score)).all()
+    places_with_comments_result = []
 
     for place in places:
         comments = get_comments_by_place_id(db, place.id)

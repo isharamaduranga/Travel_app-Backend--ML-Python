@@ -121,23 +121,11 @@ def create_place_endpoint(
         db: Session = Depends(get_db),
 ):
     try:
-        # Ensure 'uploads' directory exists
-        os.makedirs("uploads", exist_ok=True)
-
-        # Save the uploaded image to a temporary file
-        temp_file_path = f"uploads/{img.filename}"
-
-        # Print debug information
-        print(f"Temp file path: {temp_file_path}")
-
-        with open(temp_file_path, "wb") as f:
-            f.write(img.file.read())
-
         # Create a new PlaceCreate object
         place_data = PlaceCreate(
             title=title,
             content=content,
-            tags=tags.split(','),  # Assuming tags are comma-separated
+            tags=tags.split(','),
             user_id=user_id,
             user_full_name=user_full_name,
             rating_score=rating_score,
@@ -156,12 +144,10 @@ def create_place_endpoint(
     except IntegrityError as e:
         db.rollback()
         return create_response("error", f"Internal Server Error: {str(e)}", data=None)
-        # raise HTTPException(status_code=400, detail=f"Error creating place: {str(e)}")
 
     except Exception as e:
         db.rollback()
         return create_response("error", f"Internal Server Error: {str(e)}", data=None)
-        # raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 # API to get places by user ID
@@ -272,10 +258,11 @@ def get_all_places_with_comments_by_id_endpoint(place_id: int, db: Session = Dep
         raise HTTPException(status_code=500, detail=error_message)
 
 
-@app.get("/api/v1/places/getByCategory/{tag}", response_model=dict)
-def get_places_by_tag_endpoint(tag: str, db: Session = Depends(get_db)):
+@app.post("/api/v1/places/getByPlace", response_model=dict)
+def get_places_by_tag_endpoint(tag: str = Form(...), minscore: float = Form(...), maxscore: float = Form(...),
+                               db: Session = Depends(get_db)):
     try:
-        places_with_comments = get_places_by_tag(db, tag=tag)
+        places_with_comments = get_places_by_tag(db, tag=tag, min=minscore, max=maxscore)
         response_data = {
             "status": "success",
             "message": "Successfully fetched",
@@ -285,17 +272,6 @@ def get_places_by_tag_endpoint(tag: str, db: Session = Depends(get_db)):
     except Exception as e:
         error_message = "Failed to fetch data. Reason: {}".format(str(e))
         raise HTTPException(status_code=500, detail=error_message)
-
-    # API to get places by tag
-    # @app.get("/api/v1/places/getByCategory/{tag}", response_model=List[PlaceResponse])
-    # def get_places_by_tag_endpoint(tag: str, db: Session = Depends(get_db)):
-    #     places = get_places_by_tag(db, tag=tag)
-    #
-    #     # Convert tags from comma-separated string to list
-    #     for place in places:
-    #         place.tags = place.tags.split(',')
-    #
-    #     return places
 
 
 # Add a new API endpoint for searching places and comments
