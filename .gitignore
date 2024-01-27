@@ -10,10 +10,6 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Python environment
-venv/
-
-
 # Jupyter Notebook
 .ipynb_checkpoints/
 
@@ -93,9 +89,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.venv
-venv/
-venv.bak/
 
 # Spyder project settings
 .spyderproject
